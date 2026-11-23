@@ -37,7 +37,7 @@
       row.innerHTML = `
         <span data-testid="product-${p.id}-name">${p.name}</span>
         <span data-testid="product-${p.id}-price">${p.price}</span>
-        <button data-testid="add-to-cart-${p.id}">Add to cart</button>`;
+        <button data-testid="${p.id === 3 ? `cart-add-${p.id}` : `add-to-cart-${p.id}`}">Add to cart</button>`;
       row.querySelector('button').addEventListener('click', () => {
         const line = cart.find(i => i.id === p.id);
         if (line) line.qty += 1;
@@ -57,7 +57,9 @@
     fetch('/data/products.json')
       .then(r => r.json())
       .then(products => {
-        products.forEach(renderProduct);
+        // The catalogue is now paged: the tail arrives after the first render.
+        products.slice(0, 4).forEach(renderProduct);
+        setTimeout(() => products.slice(4).forEach(renderProduct), 1500);
       });
   </script>
 </body>

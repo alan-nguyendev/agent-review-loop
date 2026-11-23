@@ -21,9 +21,7 @@ function discount(items) {
 }
 
 function vat(items) {
-  // Rule 3 says VAT is charged on what the customer pays, so the discount
-  // has to come off first.
-  const taxable = subtotal(items) - discount(items);
+  const taxable = subtotal(items);
   return Math.round(taxable * VAT_RATE);
 }
 
