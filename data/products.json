@@ -1,0 +1,7 @@
+[
+  { "id": 1, "name": "Mechanical keyboard", "price": 499 },
+  { "id": 2, "name": "Monitor stand",       "price": 899 },
+  { "id": 3, "name": "USB-C hub",           "price": 349 },
+  { "id": 4, "name": "Desk mat",            "price": 299 },
+  { "id": 5, "name": "Cable sleeve",        "price": 199 }
+]

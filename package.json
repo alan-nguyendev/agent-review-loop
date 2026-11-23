@@ -1,0 +1,16 @@
+{
+  "name": "agent-review-loop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A fix-and-review loop where two agents disagree, and sometimes refuse to fix",
+  "scripts": {
+    "start": "node server.js",
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.49.1"
+  },
+  "dependencies": {
+    "express": "4.21.2"
+  }
+}
