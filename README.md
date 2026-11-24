@@ -1,5 +1,7 @@
 # agent-review-loop
 
+[![CI](https://github.com/alan-nguyendev/agent-review-loop/actions/workflows/ci.yml/badge.svg)](https://github.com/alan-nguyendev/agent-review-loop/actions/workflows/ci.yml)
+
 A failing test suite, two agents, and one rule: **if the application is broken,
 the test stays broken.**
 
@@ -253,14 +255,20 @@ A demo nobody else can run is a screenshot with extra steps.
 Reset to the broken state with `python3 -I scripts/seed-sprint.py` from the
 first commit.
 
-Every quote in this README is checked against the recorded runs:
+Two checks guard the claims on this page, and both run in CI with no
+credentials:
 
 ```bash
-python3 -I scripts/verify-readme-quotes.py
+AGENT_PROVIDER=replay node scripts/check-replay.js   # same four verdicts?
+python3 -I scripts/verify-readme-quotes.py           # quotes still verbatim?
+AGENT_PROVIDER=cli node scripts/test-reviewer.js     # does the reviewer refuse bad fixes?
 ```
 
-It is easy to tidy a quote while editing and end up with a paraphrase inside
-quotation marks. That caught three of mine.
+CI does not run `npm test`. Four of the five tests are failing on purpose, so a
+green suite would mean the demo had broken. It checks the verdicts instead.
+
+The quote check exists because it is easy to tidy a quote while editing and end
+up with a paraphrase inside quotation marks. That caught three of mine.
 
 ## Things that went wrong while building this
 
