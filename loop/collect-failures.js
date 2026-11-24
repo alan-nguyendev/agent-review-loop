@@ -36,7 +36,13 @@ function* eachSpec(node) {
 // cannot see from the rest of the message, and leaving it in makes the prompt
 // machine-specific, which silently breaks replay everywhere except where the
 // recording was made. CI caught exactly that.
+const REPO = path.join(__dirname, '..') + path.sep;
 const stabilise = s => s
+  // Stack frames carry the absolute path of the checkout, so the same failure
+  // reads differently on a laptop and on a CI runner. That difference reached
+  // the prompt, and through it the recording's hash, which is why replay only
+  // ever worked on the machine that recorded it.
+  .split(REPO).join('')
   .replace(/\b\d+ (×|x) locator resolved/g, 'N × locator resolved')
   .replace(/\b\d+(\.\d+)?ms\b(?! exceeded)(?! waiting)/g, 'Nms');
 
