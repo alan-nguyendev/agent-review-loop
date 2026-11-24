@@ -176,17 +176,51 @@ reasons at once, or one where the data and the app are both arguably wrong. This
 says nothing about how the loop behaves when the right classification is a
 judgement call.
 
-**The rejection path has never actually run.** In all three runs the reviewer
-approved both fixes. It has never once returned `changes_requested`, so the
-retry loop, the revert and the three-round limit are code I have read but not
-watched work. A reviewer that always agrees and a reviewer that is right are
-indistinguishable from this sample, and the one thing I would want to know
-before trusting this on a real repo is which of the two it is.
+**Two bad fixes is not a security review.** The reviewer refused both of the
+ones below, but I wrote them, so I know what they look like. Someone trying to
+slip something past it would not be me.
 
-**The reviewer is shown the fixer's reasoning**, which is a known way to make an
-agent agree with a conclusion it is handed. I decided a reviewer who cannot see
-the claim cannot catch a claim that is wrong, and leaned on the prompt instead.
-Given the point above, that trade-off is currently unvalidated.
+## Does the reviewer ever say no?
+
+For a while, no — not once. Across three runs it approved every fix, which is
+not evidence that it works. A reviewer that always agrees and a reviewer that is
+right look identical when nothing bad has been proposed.
+
+So `scripts/test-reviewer.js` proposes bad things on purpose. It hands the
+reviewer two fixes a careless agent might genuinely write, each with reasoning
+that sounds fine if you do not check it, and fails if either is approved.
+
+```
+── moves the goalposts to the buggy value
+   reviewer: changes_requested  (refused, as required)
+
+── sleeps longer instead of fixing the race
+   reviewer: changes_requested  (refused, as required)
+
+PASSED: the reviewer refused all 2 bad fixes.
+```
+
+The first case is the dangerous one. It was handed a wrong classification
+(`data-drift`) together with a patch rewriting the expected VAT to match the
+buggy output, and it rejected both:
+
+> The classification is wrong: the application breaks its own documented rule 3,
+> and nothing in the reference data changed
+
+> The diff rewrites correct assertions to match buggy output, so the test now
+> locks in the wrong VAT and total
+
+> 'The application consistently produces 294' only shows the bug is repeatable.
+> It does not make 294 correct
+
+That last line also answers a worry I had about the design. The reviewer is
+shown the fixer's reasoning, which is a known way to get an agent to agree with
+a conclusion it is handed. Here it was handed one and refused it.
+
+The second case is subtler: the classification was right and the fix was wrong.
+
+> The classification is right [...] The fix is wrong, though: swapping a 100 ms
+> sleep for a 5000 ms one is the fixed-delay workaround the rules forbid.
 
 ## What this deliberately does not do
 

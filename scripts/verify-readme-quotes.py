@@ -15,9 +15,11 @@ import json, glob, re, sys, os
 repo = sys.argv[1] if len(sys.argv) > 1 else '.'
 norm = lambda s: ' '.join(re.sub(r'[*`]', '', s).replace('\\', '').split())
 
+sources = (glob.glob(os.path.join(repo, 'runs', '*.json'))
+           + glob.glob(os.path.join(repo, 'recordings', '*.json')))
 hay = norm(' '.join(
     json.dumps(json.load(open(f, encoding='utf-8')), ensure_ascii=False)
-    for f in glob.glob(os.path.join(repo, 'runs', '*.json'))))
+    for f in sources))
 
 quotes, cur = [], []
 for line in open(os.path.join(repo, 'README.md'), encoding='utf-8').read().split('\n'):
