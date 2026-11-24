@@ -163,7 +163,9 @@ async function main() {
   }
   console.log('─'.repeat(70));
   console.log(`\nrun written to runs/${path.basename(runFile)}`);
-  console.log(`branch ${branch} holds ${approved.length} commit(s); you are back on ${startBranch} with 'git checkout ${startBranch}'`);
+  console.log(`\nYou are now ON ${branch}, which holds ${approved.length} commit(s).`);
+  console.log(`Run 'git checkout ${startBranch}' before doing anything else, or your next`);
+  console.log(`commit lands on the agents' branch instead of yours.`);
 
   if (WANT_PR) {
     const { openPullRequest, openIssues } = require('./publish');
