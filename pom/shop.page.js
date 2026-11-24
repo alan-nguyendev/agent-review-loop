@@ -35,7 +35,12 @@ class ShopPage {
 
   // "Add to cart" button of one product row.
   addButton(productId) {
-    return this.page.getByTestId(`add-to-cart-${productId}`);
+    // Find the button by its role and label inside the product's own row, so
+    // the test does not depend on the button's test id. That id is not consistent
+    // across products (product 3 is cart-add-3).
+    return this.page
+      .getByTestId(`product-row-${productId}`)
+      .getByRole('button', { name: 'Add to cart' });
   }
 
   async addToCart(productId) {
