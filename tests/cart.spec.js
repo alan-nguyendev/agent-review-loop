@@ -62,12 +62,12 @@ test.describe('Demo shop cart', () => {
     const shop = new ShopPage(page);
     await shop.open();
 
-    // Act — give the page a moment to finish loading the catalogue
-    await page.waitForTimeout(100);
+    // Act — nothing; the catalogue is paged, so the last rows arrive after
+    // the first render. The assertion below waits for them.
 
-    // Assert — all five products are listed
-    const count = await shop.products.count();
-    expect(count).toBe(5);
+    // Assert — all five products are listed (toHaveCount retries until the
+    // count matches or the expect timeout runs out)
+    await expect(shop.products).toHaveCount(5);
   });
 
 });
