@@ -76,25 +76,27 @@ what each run decided is in [`runs/`](runs/).
 
 ### It refused to fix the bug
 
-> The app charges VAT on the full subtotal: `vat()` computes 1398 × 0.21 ≈ 294,
-> when it should compute (1398 − 140) × 0.21 ≈ 264. Business rule 3 in the header
-> of `public/cart.js` and the precondition in the test case both say VAT is
-> charged after the discount, **so the test is right and the app's `vat()` does
-> the wrong thing.**
+> The app charges VAT on the full subtotal: vat() in public/cart.js computes
+> 1398 × 0.21 ≈ 294, when it should compute (1398 − 140) × 0.21 ≈ 264. Business
+> rule 3 in the header of public/cart.js and the precondition in the test case
+> both say VAT is charged after the discount, so the test is right and the app's
+> vat() does the wrong thing.
 
 The issue it filed quantified the damage, generalised it, and stopped short of
 applying the fix:
 
-> For keyboard plus monitor stand the app shows VAT 294 and total 1552. It
-> should show VAT 264 and total 1522, so customers who qualify for the discount
-> are overcharged by 30 here. **In general the overcharge is 21% of the
-> discount.** [...] Suggested app fix, **which a developer should review rather
-> than the test pipeline** [...] The test is correct and has been left failing on
-> purpose.
+> For keyboard plus monitor stand (subtotal 1398, discount 140) the app shows
+> VAT 294 and total 1552. It should show VAT 264 and total 1522, so customers
+> who qualify for the discount are overcharged by 30 here. In general the
+> overcharge is 21% of the discount. [...] Suggested app fix, which a developer
+> should review rather than the test pipeline: in vat(), change the taxable
+> amount to `subtotal(items) - discount(items)`. [...] The test is correct and
+> has been left failing on purpose.
 
 ### It noticed something I had not
 
-On the changed price, it did not stop at reporting a mismatch:
+On the changed price, it did not stop at reporting a mismatch. This one is from
+the second run, [`runs/2026-11-24T07-45-26.json`](runs/2026-11-24T07-45-26.json):
 
 > One thing points to option 2: **349 is exactly the USB-C hub's price (id 3),
 > so the desk mat value may have been copied from the row above by mistake.**
@@ -114,15 +116,16 @@ Fixed in `215c512` — which is why the run recorded here no longer reports it.
 
 ### The reviewer earned its place
 
-The renamed test id was approved, but not silently:
+The renamed test id was approved, but not silently. Both of these are from the
+second run as well:
 
-> Not blocking: the odd `cart-add-3` id is a one-off in the markup. **It's worth
-> telling the developers so they can make it consistent**, even though the test
-> no longer depends on it.
+> Not blocking: the odd `cart-add-3` id is a one-off in the markup (`p.id === 3
+> ? ...` in index.html). It's worth telling the developers so they can make it
+> consistent, even though the test no longer depends on it.
 
 > Not blocking: this change only fixes the locator. The VAT-before-discount bug
-> in `cart.js` is a real product bug and is still failing in its own test, which
-> is correct; **it must not be 'fixed' in the test.**
+> in cart.js (`vat()` taxes the full subtotal) is a real product bug and is still
+> failing in its own test, which is correct; it must not be 'fixed' in the test.
 
 The second one was unprompted. Nothing asked the reviewer about a failure it was
 not reviewing.
@@ -189,6 +192,15 @@ A demo nobody else can run is a screenshot with extra steps.
 
 Reset to the broken state with `python3 -I scripts/seed-sprint.py` from the
 first commit.
+
+Every quote in this README is checked against the recorded runs:
+
+```bash
+python3 -I scripts/verify-readme-quotes.py
+```
+
+It is easy to tidy a quote while editing and end up with a paraphrase inside
+quotation marks. That caught three of mine.
 
 ## Things that went wrong while building this
 
