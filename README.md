@@ -37,7 +37,7 @@ Run on 24 November 2026, Claude Sonnet, first live run, nothing retried:
 running the suite...
   1 passed, 4 failed
 
-working on autofix/2026-11-24T07-45-26
+working on autofix/2026-11-24T07-49-35
 
   user can add a product to the cart
     round 1: ui-change / fix
@@ -67,27 +67,30 @@ fixed     test-defect   user sees the whole catalogue once it has loaded
 Four for four. The suite ends at **3 passed, 2 failed** — and the two still
 failing are the two that should be.
 
-Run twice, from the same starting state. Both runs produced the same four
+Run three times from the same starting state. Every run produced the same four
 classifications, the same two fixes and the same two refusals. One run is an
-anecdote; two is at least a weak signal.
+anecdote; three is at least a weak signal.
 
 Full transcripts of every agent call are in [`recordings/`](recordings/), and
 what each run decided is in [`runs/`](runs/).
 
 ### It refused to fix the bug
 
-> The app returned VAT 294, which is 21% of the full subtotal (1398 × 0.21 =
-> 293.58, rounded to 294). The rule documented in `public/cart.js` itself and in
-> the test case says VAT is charged after the discount: (1398 − 140) × 0.21 =
-> 264.18, rounded to 264. **The test matches the agreed rule.**
+> The app charges VAT on the full subtotal: `vat()` computes 1398 × 0.21 ≈ 294,
+> when it should compute (1398 − 140) × 0.21 ≈ 264. Business rule 3 in the header
+> of `public/cart.js` and the precondition in the test case both say VAT is
+> charged after the discount, **so the test is right and the app's `vat()` does
+> the wrong thing.**
 
-The issue it filed quantified the damage instead of just naming the function:
+The issue it filed quantified the damage, generalised it, and stopped short of
+applying the fix:
 
-> Any customer whose order is over 1000 is overcharged. In this test that's 30
-> (VAT 294 instead of 264). The total is also wrong: the app shows 1552 where
-> the correct figure is 1522. Suggested app fix, **for a developer to review
-> rather than for the test-fixing loop to apply** [...] The test should stay as
-> it is and keep failing until the app is fixed.
+> For keyboard plus monitor stand the app shows VAT 294 and total 1552. It
+> should show VAT 264 and total 1522, so customers who qualify for the discount
+> are overcharged by 30 here. **In general the overcharge is 21% of the
+> discount.** [...] Suggested app fix, **which a developer should review rather
+> than the test pipeline** [...] The test is correct and has been left failing on
+> purpose.
 
 ### It noticed something I had not
 
@@ -100,14 +103,14 @@ On the changed price, it did not stop at reporting a mismatch:
 That collision was accidental on my part. I seeded the price change without
 noticing it matched the row above it.
 
-While triaging an unrelated failure it also found a real defect in this repo
-that I had missed:
+In an earlier run, while triaging an unrelated failure, it also found a real
+defect in this repo that I had missed:
 
 > The 'last product can be added to the cart' test case has no matching test,
 > and its expected subtotal of 349 contradicts the cable sleeve's price of 199.
 
 It was right. A test had been reworked and its documentation block had not.
-Fixed in `215c512`.
+Fixed in `215c512` — which is why the run recorded here no longer reports it.
 
 ### The reviewer earned its place
 
