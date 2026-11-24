@@ -140,17 +140,19 @@ test.describe('Demo shop cart', () => {
  */
 
 /**
- * TEST CASE: The last product in the catalogue can be added to the cart
+ * TEST CASE: The whole catalogue is listed
  *
  * Preconditions:
- * - The cable sleeve is the last product in the catalogue.
+ * - data/products.json contains five products.
+ * - The catalogue may be rendered in pages, so the last rows can arrive late.
  *
  * Steps:
  * 1. Open the shop homepage.
- * 2. Add the cable sleeve to the cart.
+ * 2. Wait for the catalogue to finish rendering.
+ * 3. Count the product rows on the page.
  *
  * Expected result:
- * - The subtotal shows 349.
+ * - Five product rows are shown.
  *
  * Cleanup: None.
  */
