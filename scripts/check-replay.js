@@ -16,6 +16,33 @@ const EXPECTED = {
   'user sees the whole catalogue once it has loaded': { classification: 'test-defect', outcome: 'approved' },
 };
 
+// On main the suite is the broken baseline and all four failures are present,
+// so the loop can be replayed and its verdicts checked. On a branch that
+// already carries the agents' fixes there are only two failures left, and the
+// meaningful check is the opposite one: that exactly the two deliberate
+// failures survived and nothing quietly turned the suite green.
+const { runTests, collectFailures, summarise } = require('../loop/collect-failures');
+const DELIBERATE = [
+  'user sees the catalogue price of a product',
+  'user sees the correct total including discount and VAT',
+];
+
+const first = runTests();
+const failures = collectFailures(first).map(f => f.title);
+
+if (failures.length !== 4) {
+  console.log(`${summarise(first).unexpected} failing test(s) — this is not the baseline, so checking the outcome instead of the verdicts.\n`);
+  const missing = DELIBERATE.filter(t => !failures.includes(t));
+  const extra = failures.filter(t => !DELIBERATE.includes(t));
+  for (const t of DELIBERATE) console.log(`${failures.includes(t) ? 'OK      ' : 'GONE    '} still failing on purpose: ${t}`);
+  for (const t of extra) console.log(`UNEXPECTED  ${t}`);
+  if (missing.length) console.error(`\n${missing.length} deliberate failure(s) stopped failing. The suite was made green over a real defect.`);
+  if (extra.length) console.error(`\n${extra.length} unexpected failure(s).`);
+  if (missing.length || extra.length) process.exit(1);
+  console.log('\nOnly the two deliberate failures remain.');
+  process.exit(0);
+}
+
 const before = new Set(fs.readdirSync(runsDir));
 execFileSync('node', [path.join(root, 'loop', 'index.js')], {
   cwd: root,
