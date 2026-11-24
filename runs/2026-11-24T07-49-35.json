@@ -1,0 +1,65 @@
+{
+  "branch": "autofix/2026-11-24T07-49-35",
+  "provider": "cli",
+  "model": "claude-sonnet-5-5",
+  "before": {
+    "expected": 1,
+    "unexpected": 4,
+    "flaky": 0
+  },
+  "after": {
+    "expected": 3,
+    "unexpected": 2,
+    "flaky": 0
+  },
+  "results": [
+    {
+      "test": "user can add a product to the cart",
+      "classification": "ui-change",
+      "action": "fix",
+      "outcome": "approved",
+      "rounds": 1,
+      "fixerReasoning": "The test isn't finding the USB-C hub button because the app changed its test id. public/index.html line 40 now renders product 3's button as data-testid=\"cart-add-3\", while every other product still uses \"add-to-cart-N\". The button still reads \"Add to cart\" and its click handler is the same, so customers can still add the hub to the cart. The page object's locator is what's out of date, not the product.",
+      "fixerReport": "Not a blocker, but someone should look at it. public/index.html line 40 deliberately special-cases one product's test id: `p.id === 3 ? `cart-add-${p.id}` : `add-to-cart-${p.id}``. It works for customers, but naming one row differently on purpose looks like a mistake or a leftover experiment. The front-end owner should either use one naming scheme for all products or confirm the split is intended. Separately, this test will likely still fail after this fix, for a different reason: public/cart.js computes VAT on the full subtotal (`const taxable = subtotal(items)`), not on the amount after the discount. That breaks the documented business rule, and the 'correct total including discount and VAT' test will rightly keep failing on it. That one is an app bug, and that test must not be changed to pass.",
+      "reviewerVerdict": "approve",
+      "reviewerReasoning": "I checked public/index.html and the claim is true. Product 3's button gets data-testid=\"cart-add-3\" and every other product gets \"add-to-cart-N\". It is the same <button> with the same \"Add to cart\" label and the same click handler that pushes into the cart. Product 3 is also in the first render batch (slice(0, 4)), so the new paging plays no part in this timeout. A customer can still add the hub, so the stale part was the test's locator, not the product. The new locator finds the button by its row's test id (product-row-N, which is consistent across products) plus its role and label. That works for every product without a special case for product 3. The assertion that the subtotal is 349 is unchanged, so the test still checks the real outcome.",
+      "reviewerConcerns": [
+        "The new code comment names \"cart-add-3\". It will be out of date once the app's test ids are made consistent again, so it would be better to say only that the button test ids are inconsistent.",
+        "The odd test id for product 3 looks like a slip from a refactor. Someone should tell the app developers about it, even though the test no longer depends on it.",
+        "addButton is also used by the catalogue-display test and the discount/VAT test. The new locator should find the same button there, but the full suite should be run to confirm. The discount/VAT test is expected to keep failing because of the separate VAT-before-discount bug in public/cart.js."
+      ]
+    },
+    {
+      "test": "user sees the catalogue price of a product",
+      "classification": "data-drift",
+      "action": "report",
+      "outcome": "reported",
+      "rounds": 1,
+      "fixerReasoning": "The page shows 349 for the desk mat, and data/products.json now also lists it at 349. The app is correctly rendering the reference data it was given. The test's precondition says products.json lists the desk mat at 299, so the reference data has changed under the test. Nothing is wrong with the app or with how the test is built. What's unknown is whether 349 is the intended new price or a data-entry mistake.",
+      "fixerReport": "The 'user sees the catalogue price of a product' test (tests/cart.spec.js:38) expects the desk mat (product 4) to cost 299, but data/products.json now lists it at 349 and the shop correctly displays 349. The app is not at fault, because the rendered price matches the data file. Someone who owns the product data needs to decide which price is correct. (1) If 349 is a real price change, update the assertion to '349' and update the test-case precondition ('data/products.json lists the desk mat at 299'). (2) If it's a mistake, restore the desk mat to 299 in data/products.json and leave the test unchanged. One reason to suspect a mistake: 349 is exactly the USB-C hub's price (product 3), so the value may have been copied from the row above. Check the history of data/products.json (git log -p data/products.json) to see when and why it changed. I have not changed the test. Separately, public/cart.js has an unrelated problem: vat() charges VAT on the full subtotal instead of subtotal minus discount, which breaks business rule 3. That should make the discount/VAT test fail as an app bug, and it should not be 'fixed' in the test."
+    },
+    {
+      "test": "user sees the correct total including discount and VAT",
+      "classification": "app-bug",
+      "action": "report",
+      "outcome": "reported",
+      "rounds": 1,
+      "fixerReasoning": "The app charges VAT on the full subtotal: vat() in public/cart.js computes 1398 × 0.21 ≈ 294, when it should compute (1398 − 140) × 0.21 ≈ 264. Business rule 3 in the header of public/cart.js and the precondition in the test case both say VAT is charged after the discount, so the test is right and the app's vat() does the wrong thing. Subtotal and discount match the expected values, which shows the setup and locators work; only the VAT calculation is wrong.",
+      "fixerReport": "Application bug in public/cart.js, in the vat() function. It sets `const taxable = subtotal(items);`, which applies 21% VAT to the full subtotal before the discount. The documented rule (rule 3 in the file header, and the test-case precondition) says VAT is charged on the amount the customer pays, after the discount. For keyboard plus monitor stand (subtotal 1398, discount 140) the app shows VAT 294 and total 1552. It should show VAT 264 and total 1522, so customers who qualify for the discount are overcharged by 30 here. In general the overcharge is 21% of the discount. The test is correct and has been left failing on purpose. Suggested app fix, which a developer should review rather than the test pipeline: in vat(), change the taxable amount to `subtotal(items) - discount(items)`. After that, total() automatically becomes (subtotal − discount) + VAT on the discounted amount. Separate issue, not the cause of this failure: data/products.json lists the desk mat (id 4) at 349, but the test 'user sees the catalogue price of a product' and its test case expect 299. That is reference-data drift and a human needs to decide which price is correct."
+    },
+    {
+      "test": "user sees the whole catalogue once it has loaded",
+      "classification": "test-defect",
+      "action": "fix",
+      "outcome": "approved",
+      "rounds": 1,
+      "fixerReasoning": "The app is paging the catalogue on purpose. public/index.html renders the first four products straight away and adds the fifth 1500 ms later. The comment there says \"The catalogue is now paged: the tail arrives after the first render\", and the test case doc for this test says the last rows can arrive late. The test waits a fixed 100 ms and then counts once with `count()`, which never waits, so it always sees 4. The app and the data both have five products. The test's timing assumption is the problem, so the fix is an assertion that keeps retrying until five rows are shown, not a longer sleep.",
+      "fixerReport": null,
+      "reviewerVerdict": "approve",
+      "reviewerReasoning": "The other agent's claims check out. public/index.html (commit 972e9ae) renders the first four products and adds the fifth with setTimeout(..., 1500), the test case doc says the last rows can arrive late, and data/products.json still has five products, so neither the app nor the data is broken. The diff replaces a fixed 100 ms sleep and a one-shot count() with Playwright's web-first toHaveCount(5), which waits for the page to reach the required state; it is not a blind retry or a longer sleep. It keeps the exact count of 5 and doesn't touch the timeouts, config or app code. I couldn't run the test myself because the run was blocked at the permission prompt.",
+      "reviewerConcerns": [
+        "toHaveCount uses Playwright's default 5 s expect timeout, which comfortably covers the 1500 ms delay, but the test would start flaking if the paging delay ever rose near 5 s."
+      ]
+    }
+  ]
+}
