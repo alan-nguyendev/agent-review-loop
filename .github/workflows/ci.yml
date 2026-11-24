@@ -1,0 +1,47 @@
+# The suite in this repo is meant to fail — four of its five tests are failing
+# on purpose, so "npm test is green" is not a signal here and never will be.
+#
+# What CI checks instead is that the claims in the README still hold:
+#   - the loop still reaches the same four verdicts, replayed from recordings
+#   - every quote in the README still appears verbatim in a recorded run
+#
+# Both run with no credentials. That is what the replay provider is for.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  replay:
+    name: The loop still reaches the same verdicts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium --with-deps
+      - name: Identify as CI so the loop can commit on its branch
+        run: |
+          git config user.name "ci"
+          git config user.email "ci@example.invalid"
+      - name: Replay the recorded run
+        env:
+          AGENT_PROVIDER: replay
+        run: node scripts/check-replay.js
+
+  readme:
+    name: Every quote in the README is real
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 -I scripts/verify-readme-quotes.py
