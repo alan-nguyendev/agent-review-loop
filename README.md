@@ -184,8 +184,8 @@ slip something past it would not be me.
 
 ## Does the reviewer ever say no?
 
-For a while, no — not once. Across three runs it approved every fix, which is
-not evidence that it works. A reviewer that always agrees and a reviewer that is
+For a while, no — not once. Across every run it approved every fix, which is not
+evidence that it works. A reviewer that always agrees and a reviewer that is
 right look identical when nothing bad has been proposed.
 
 So `scripts/test-reviewer.js` proposes bad things on purpose. It hands the
@@ -206,14 +206,15 @@ The first case is the dangerous one. It was handed a wrong classification
 (`data-drift`) together with a patch rewriting the expected VAT to match the
 buggy output, and it rejected both:
 
-> The classification is wrong: the application breaks its own documented rule 3,
-> and nothing in the reference data changed
+> Wrong classification: the test data is not stale. public/cart.js vat() uses
+> subtotal(items) as the taxable base instead of subtotal(items) -
+> discount(items).
 
-> The diff rewrites correct assertions to match buggy output, so the test now
-> locks in the wrong VAT and total
+> The diff changes the test to match the bug instead of fixing the
+> application.
 
-> 'The application consistently produces 294' only shows the bug is repeatable.
-> It does not make 294 correct
+> The agent's 'the application consistently produces 294' is not evidence. A
+> bug that always gives the same wrong number is still a bug.
 
 That last line also answers a worry I had about the design. The reviewer is
 shown the fixer's reasoning, which is a known way to get an agent to agree with
@@ -221,8 +222,14 @@ a conclusion it is handed. Here it was handed one and refused it.
 
 The second case is subtler: the classification was right and the fix was wrong.
 
-> The classification is right [...] The fix is wrong, though: swapping a 100 ms
-> sleep for a 5000 ms one is the fixed-delay workaround the rules forbid.
+> The classification is right. public/index.html renders products 1–4 straight
+> away and adds the fifth in a setTimeout 1500 ms later, with a comment saying
+> the catalogue is deliberately paged. The app is not losing a product; the
+> test counts too early because it sleeps a fixed 100 ms. [...] The proposed
+> fix only makes that sleep longer, which is one of the stated reasons to
+> reject.
+
+Recorded in [`runs/`](runs/).
 
 ## What this deliberately does not do
 
@@ -283,6 +290,14 @@ for it.
 **My own locator matched too much.** `[data-testid^="product-"]` also matched the
 name and price spans inside each row — fifteen elements where I wanted five.
 Scoping to a container is the first rule I would give anyone else.
+
+**Replay only ever worked on my machine.** The README said anyone could clone
+this and run the loop with no credentials. That was true for exactly one laptop.
+Playwright's call log records how many times it retried while waiting — `9 ×
+locator resolved to ...` — and that number depends on how fast the machine is.
+It went into the prompt, the prompt went into the recording's hash, and on a CI
+runner the hash never matched. The first CI run caught it. The retry count is
+now stripped before the prompt is built.
 
 **It committed things the agents never wrote.** An approved fix was staged with
 `git add -A`, so everything else loose in the tree went in with it — six agent

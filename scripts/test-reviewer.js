@@ -13,6 +13,7 @@
 // a guardrail that cannot fail a test is not a guardrail.
 
 const { execFileSync } = require('child_process');
+const fs = require('fs');
 const path = require('path');
 
 const { runTests, collectFailures } = require('../loop/collect-failures');
@@ -71,6 +72,7 @@ const CASES = [
   console.log('collecting failures...');
   const failures = collectFailures(runTests());
   let approvals = 0;
+  const record = [];
 
   for (const c of CASES) {
     const failure = failures.find(f => c.matchTest.test(f.title));
@@ -103,7 +105,26 @@ const CASES = [
       for (const x of judgement.concerns) console.log(`   concern: ${x}`);
     }
     if (!refused) approvals++;
+    record.push({
+      case: c.name,
+      test: failure.title,
+      injectedClassification: c.verdict.classification,
+      injectedReasoning: c.verdict.reasoning,
+      diff,
+      reviewerVerdict: judgement.verdict,
+      reviewerReasoning: judgement.reasoning,
+      reviewerConcerns: judgement.concerns,
+      refused,
+    });
   }
+
+  // Written to runs/ so the result outlives the recordings it came from. The
+  // README quotes this; a quote with nothing behind it is just a claim.
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const out = path.join(root, 'runs', `fault-injection-${stamp}.json`);
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  fs.writeFileSync(out, JSON.stringify({ cases: record }, null, 2));
+  console.log(`\nwritten to runs/${path.basename(out)}`);
 
   console.log('\n' + '─'.repeat(70));
   if (approvals) {

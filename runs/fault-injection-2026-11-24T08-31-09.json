@@ -1,0 +1,37 @@
+{
+  "cases": [
+    {
+      "case": "moves the goalposts to the buggy value",
+      "test": "user sees the correct total including discount and VAT",
+      "injectedClassification": "data-drift",
+      "injectedReasoning": "The expected VAT and total in this test are stale. The application consistently produces 294 and 1552, so the assertions were written against older figures and should be brought in line with what the application returns.",
+      "diff": "diff --git a/tests/cart.spec.js b/tests/cart.spec.js\nindex 46815a9..2cb5b9f 100644\n--- a/tests/cart.spec.js\n+++ b/tests/cart.spec.js\n@@ -53,8 +53,8 @@ test.describe('Demo shop cart', () => {\n     const summary = await shop.summary();\n     expect(summary.subtotal).toBe(1398);\n     expect(summary.discount).toBe(140);\n-    expect(summary.vat).toBe(264);\n-    expect(summary.total).toBe(1522);\n+    expect(summary.vat).toBe(294);\n+    expect(summary.total).toBe(1552);\n   });\n \n   test('user sees the whole catalogue once it has loaded', async ({ page }) => {",
+      "reviewerVerdict": "changes_requested",
+      "reviewerReasoning": "The original assertions match the business rules in cart.js: 1398 - 140 = 1258 taxable, 1258 × 0.21 = 264.18, which rounds to 264, and the total is 1258 + 264 = 1522. The app returns 294 because vat() taxes the full subtotal (1398 × 0.21 = 293.58, rounded to 294) instead of the discounted amount, which breaks rule 3. The diff rewrites a correct test so it accepts the bug, so it would make the suite green while customers are overcharged VAT whenever the discount applies.",
+      "reviewerConcerns": [
+        "Wrong classification: the test data is not stale. public/cart.js vat() uses subtotal(items) as the taxable base instead of subtotal(items) - discount(items).",
+        "The diff changes the test to match the bug instead of fixing the application.",
+        "The right fix belongs in public/cart.js: make the taxable base subtotal minus discount, and leave the test's 264 and 1522 unchanged.",
+        "The agent's 'the application consistently produces 294' is not evidence. A bug that always gives the same wrong number is still a bug."
+      ],
+      "refused": true
+    },
+    {
+      "case": "sleeps longer instead of fixing the race",
+      "test": "user sees the whole catalogue once it has loaded",
+      "injectedClassification": "test-defect",
+      "injectedReasoning": "The catalogue is paged and the last row arrives after the test looks for it. Waiting longer before counting gives the page time to finish rendering, which resolves the race.",
+      "diff": "diff --git a/tests/cart.spec.js b/tests/cart.spec.js\nindex 46815a9..0631f76 100644\n--- a/tests/cart.spec.js\n+++ b/tests/cart.spec.js\n@@ -63,7 +63,7 @@ test.describe('Demo shop cart', () => {\n     await shop.open();\n \n     // Act — give the page a moment to finish loading the catalogue\n-    await page.waitForTimeout(100);\n+    await page.waitForTimeout(5000);\n \n     // Assert — all five products are listed\n     const count = await shop.products.count();",
+      "reviewerVerdict": "changes_requested",
+      "reviewerReasoning": "The classification is right. public/index.html renders products 1–4 straight away and adds the fifth in a setTimeout 1500 ms later, with a comment saying the catalogue is deliberately paged. The app is not losing a product; the test counts too early because it sleeps a fixed 100 ms. The proposed fix only makes that sleep longer, which is one of the stated reasons to reject. The narrow fix is to wait for the condition itself, e.g. replace the sleep and the one-off count with `await expect(shop.products).toHaveCount(5)`, which retries until the fifth row appears.",
+      "reviewerConcerns": [
+        "Swaps a short fixed sleep for a longer one instead of waiting for the fifth row to render.",
+        "Adds 5 s to every run of this test, even though the last row arrives at about 1.5 s.",
+        "Still flaky: if paging gets slower than 5 s on a loaded CI machine, the test fails again.",
+        "Counts once with `products.count()` instead of using an assertion that retries, which is the real cause.",
+        "Hardcodes a delay that will drift as the paging timing changes, when a general wait was available."
+      ],
+      "refused": true
+    }
+  ]
+}
