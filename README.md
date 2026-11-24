@@ -37,7 +37,7 @@ Run on 24 November 2026, Claude Sonnet, first live run, nothing retried:
 running the suite...
   1 passed, 4 failed
 
-working on autofix/2026-11-24T07-40-31
+working on autofix/2026-11-24T07-45-26
 
   user can add a product to the cart
     round 1: ui-change / fix
@@ -67,56 +67,70 @@ fixed     test-defect   user sees the whole catalogue once it has loaded
 Four for four. The suite ends at **3 passed, 2 failed** — and the two still
 failing are the two that should be.
 
-The full transcript is in [`runs/`](runs/).
+Run twice, from the same starting state. Both runs produced the same four
+classifications, the same two fixes and the same two refusals. One run is an
+anecdote; two is at least a weak signal.
+
+Full transcripts of every agent call are in [`recordings/`](recordings/), and
+what each run decided is in [`runs/`](runs/).
 
 ### It refused to fix the bug
 
-> In `public/cart.js`, `vat()` computes VAT on the full subtotal: 1398 × 0.21 =
-> 293.58, which rounds to 294. The documented business rule in the same file's
-> header and the test case both say VAT is charged after the discount:
-> (1398 − 140) × 0.21 = 264.18, which rounds to 264. **The test matches the
-> agreed rule and the application does not, so the test is right to fail and
-> must not be changed.**
+> The app returned VAT 294, which is 21% of the full subtotal (1398 × 0.21 =
+> 293.58, rounded to 294). The rule documented in `public/cart.js` itself and in
+> the test case says VAT is charged after the discount: (1398 − 140) × 0.21 =
+> 264.18, rounded to 264. **The test matches the agreed rule.**
 
-The issue it filed quantified the damage rather than just naming the function:
+The issue it filed quantified the damage instead of just naming the function:
 
-> Affected orders: any order over the 1000 discount threshold, where customers
-> are overcharged VAT. For keyboard + monitor stand, VAT shows 294 instead of
-> 264 and the total will show 1552 instead of 1522, so **customers pay 30 too
-> much.**
+> Any customer whose order is over 1000 is overcharged. In this test that's 30
+> (VAT 294 instead of 264). The total is also wrong: the app shows 1552 where
+> the correct figure is 1522. Suggested app fix, **for a developer to review
+> rather than for the test-fixing loop to apply** [...] The test should stay as
+> it is and keep failing until the app is fixed.
 
 ### It noticed something I had not
 
-On the changed price, it did not just report a mismatch:
+On the changed price, it did not stop at reporting a mismatch:
 
-> One reason to suspect the change is an accident: **349 is exactly the USB-C
-> hub's price**, which looks like a copy-paste slip in the data. Please confirm
-> the desk mat's real catalogue price.
+> One thing points to option 2: **349 is exactly the USB-C hub's price (id 3),
+> so the desk mat value may have been copied from the row above by mistake.**
+> Check the git history or blame of `data/products.json` before choosing.
 
 That collision was accidental on my part. I seeded the price change without
-noticing it matched another row.
+noticing it matched the row above it.
+
+While triaging an unrelated failure it also found a real defect in this repo
+that I had missed:
+
+> The 'last product can be added to the cart' test case has no matching test,
+> and its expected subtotal of 349 contradicts the cable sleeve's price of 199.
+
+It was right. A test had been reworked and its documentation block had not.
+Fixed in `215c512`.
 
 ### The reviewer earned its place
 
-On the renamed test id, the fix was approved — but not silently:
+The renamed test id was approved, but not silently:
 
-> The app now gives only product 3 a different button test id. **That looks like
-> a refactor mistake, and someone who owns the app should be told**, even though
-> the test is right not to depend on it.
+> Not blocking: the odd `cart-add-3` id is a one-off in the markup. **It's worth
+> telling the developers so they can make it consistent**, even though the test
+> no longer depends on it.
 
-> `addButton` is shared, so the tests for the product list and for discount and
-> VAT now use the new locator too. It still finds their buttons, but the
-> reviewer should know the change reaches those tests.
+> Not blocking: this change only fixes the locator. The VAT-before-discount bug
+> in `cart.js` is a real product bug and is still failing in its own test, which
+> is correct; **it must not be 'fixed' in the test.**
 
-Both are things a careful human reviewer would raise.
+The second one was unprompted. Nothing asked the reviewer about a failure it was
+not reviewing.
 
 ### The diffs
 
 ```diff
    addButton(productId) {
 -    return this.page.getByTestId(`add-to-cart-${productId}`);
-+    // Scope to the product's row and find the button by its role and label, so a
-+    // renamed test id on the button can't break this.
++    // Find the button by its role and label inside the product's row, so it no
++    // longer depends on the button's own test id.
 +    return this.page
 +      .getByTestId(`product-row-${productId}`)
 +      .getByRole('button', { name: 'Add to cart' });
@@ -137,8 +151,8 @@ Both are things a careful human reviewer would raise.
 +    await expect(shop.products).toHaveCount(5);
 ```
 
-Neither fix reaches for a retry or a longer timeout, which is the failure mode
-I was most worried about.
+Neither fix reaches for a retry or a longer timeout, which is the failure mode I
+was most worried about. Both commits touch exactly one file.
 
 ---
 
@@ -186,6 +200,19 @@ for it.
 **My own locator matched too much.** `[data-testid^="product-"]` also matched the
 name and price spans inside each row — fifteen elements where I wanted five.
 Scoping to a container is the first rule I would give anyone else.
+
+**It committed things the agents never wrote.** An approved fix was staged with
+`git add -A`, so everything else loose in the tree went in with it — six agent
+recordings ended up inside commits labelled as the agents' code fixes. A commit
+that claims to be a two-line locator change has to be a two-line locator change,
+or the diff the reviewer reads is a lie. It now stages only the file the patch
+named.
+
+**I made the mistake my own code refuses to make.** The stale documentation
+block above got there because I edited a file with an unchecked string
+replacement that silently matched nothing. `applyPatch` in this repo rejects
+exactly that: a snippet that matches zero times, or more than once, is refused
+rather than applied approximately. I did not hold myself to it.
 
 **The run left me on the wrong branch.** The end-of-run message said "you are
 back on main". It is not; it leaves you on the autofix branch so you can inspect
