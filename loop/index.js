@@ -73,7 +73,10 @@ async function handleFailure(failure, log) {
     log(`      reviewer: ${judgement.verdict}${judgement.agreesWithClassification ? '' : ' (disputes the classification)'}`);
 
     if (judgement.verdict === 'approve') {
-      git('add', '-A');
+      // Only the file the patch touched. `git add -A` would sweep anything else
+      // lying around — recordings, reports, scratch files — into a commit that
+      // claims to be the agent's fix, which makes the diff a lie.
+      git('add', verdict.patch.file);
       git('commit', '-m',
         `Fix: ${failure.title}\n\n${verdict.classification}: ${verdict.reasoning}\n\nReviewed by a second agent: ${judgement.reasoning}`);
       return { failure, verdict, judgement, diff, outcome: 'approved', rounds: round };
