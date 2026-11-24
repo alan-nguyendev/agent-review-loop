@@ -1,0 +1,65 @@
+{
+  "branch": "autofix/2026-11-24T08-28-00",
+  "provider": "cli",
+  "model": "claude-sonnet-5-5",
+  "before": {
+    "expected": 1,
+    "unexpected": 4,
+    "flaky": 0
+  },
+  "after": {
+    "expected": 3,
+    "unexpected": 2,
+    "flaky": 0
+  },
+  "results": [
+    {
+      "test": "user can add a product to the cart",
+      "classification": "ui-change",
+      "action": "fix",
+      "outcome": "approved",
+      "rounds": 1,
+      "fixerReasoning": "The 'Add to cart' button for the USB-C hub is still there and still works, but public/index.html line 40 now gives product 3 the test id `cart-add-3` instead of `add-to-cart-3`, so getByTestId('add-to-cart-3') never matches. Commit 972e9ae made this change as a test-id rename during a refactor. Clicking the button still adds the item to the cart, and the cart maths for one item is unaffected, so the expected subtotal of 349 is still correct. The locator is out of date. The app is not broken.",
+      "fixerReport": "No human decision is needed for this test. Someone should still tell the app team that the rename only touched product 3: the other buttons are still `add-to-cart-N`. That looks like an unfinished refactor, so they should decide on one naming scheme. The new locator finds the button inside its product row by role and label, so it works with either scheme. This fix will not make the other failing tests pass. The checkout-total test fails because VAT is charged on the full subtotal instead of the discounted amount. That is a real app bug in public/cart.js, so the test must stay failing.",
+      "reviewerVerdict": "approve",
+      "reviewerReasoning": "I checked public/index.html: product 3's button now gets the test id `cart-add-3` while every other product keeps `add-to-cart-N`. The click handler and cart maths are the same for every product, and data/products.json still prices the USB-C hub at 349, so the failing test's assertion is still correct. The new locator finds the button by its accessible role and label inside the existing `product-row-N` element. It still clicks the real button and still checks the real subtotal, it works for every product without naming product 3, and it adds no retry, timeout or change to the assertion.",
+      "reviewerConcerns": [
+        "public/index.html deliberately gives product 3 a different button id from the other products. This inconsistency was put into the app on purpose; a human should decide whether to make it consistent, rather than the tests quietly working around it.",
+        "The locator now depends on the visible 'Add to cart' text, so changing or translating that label will break it. This is acceptable for a role-based locator, but it is a new dependency.",
+        "The code comment in the diff names product 3 and `cart-add-3`. That detail will go stale once the app's ids are made consistent."
+      ]
+    },
+    {
+      "test": "user sees the catalogue price of a product",
+      "classification": "data-drift",
+      "action": "report",
+      "outcome": "reported",
+      "rounds": 1,
+      "fixerReasoning": "The app shows the desk mat (product 4) at 349, and data/products.json now lists it at 349. So the page correctly renders the reference data it is given. The test and its documented precondition expect 299, which means the reference data changed after the test was written, and nothing shows whether that was a deliberate repricing or a mistake. The test correctly checked the documented value and the rendering is correct, so a human has to decide which price is right.",
+      "fixerReport": "Test 'user sees the catalogue price of a product' (tests/cart.spec.js:38) expects the desk mat (id 4) to cost 299, as its documented precondition says ('data/products.json lists the desk mat at 299'). data/products.json now lists the desk mat at 349, and the shop displays 349 correctly. The rendering is not the problem. Someone has to decide which price is right. Warning sign: 349 is exactly the USB-C hub's price (id 3, the row above), so this could be a copy-paste error in the data file rather than a real price change. Check with whoever owns the product data. (1) If 299 is correct: fix data/products.json back to 299 and leave the test alone. (2) If 349 is a deliberate repricing: update the assertion on line 38, the '// Assert' comment and the 'TEST CASE: The catalogue price matches the product data' precondition and expected result to 349. The assertion has not been changed automatically, and the test should stay red until this is decided."
+    },
+    {
+      "test": "user sees the correct total including discount and VAT",
+      "classification": "app-bug",
+      "action": "report",
+      "outcome": "reported",
+      "rounds": 1,
+      "fixerReasoning": "The test is right. The application's own business rules in public/cart.js say rule 3: 'VAT is charged on the amount the customer actually pays, AFTER the discount', but the vat() function there sets `taxable = subtotal(items)` and never subtracts the discount. It returns round(1398 × 0.21) = 294. The rule gives round((1398 − 140) × 0.21) = round(1258 × 0.21) = 264, which is what the test expects. The test's comment and its test-case doc state the same rule, so the code disagrees with the written spec, the test and the README-style contract at the top of its own file.",
+      "fixerReport": "The test is correct, so do not change it. There is a bug in public/cart.js, vat(): it calculates VAT on the full subtotal and ignores the discount, which breaks business rule 3 written at the top of the same file. For a cart of keyboard (499) + monitor stand (899), the app charges VAT of 294 instead of 264 and shows a total of 1552 instead of 1522. On any order over 1000, customers are overcharged VAT equal to 21% of the discount. Suggested fix, for a human to apply in the application and not the test: `const taxable = subtotal(items) - discount(items);`. Once that's in, the test should pass with no other changes. Separately, and not part of this failure: data/products.json now lists the desk mat (id 4) at 349, but 'user sees the catalogue price of a product' expects 299. That's a data-drift question for someone to decide on its own."
+    },
+    {
+      "test": "user sees the whole catalogue once it has loaded",
+      "classification": "test-defect",
+      "action": "fix",
+      "outcome": "approved",
+      "rounds": 1,
+      "fixerReasoning": "The app now pages the catalogue on purpose: public/index.html renders the first 4 products, then renders the rest 1500 ms later (\"The catalogue is now paged: the tail arrives after the first render\"). The test case already expects this (\"the last rows can arrive late\"). The test still waits a fixed 100 ms and then takes a single count() snapshot, so it reads 4 every time, even though the app does show all 5 products.",
+      "fixerReport": null,
+      "reviewerVerdict": "approve",
+      "reviewerReasoning": "I checked the agent's claim against the code and it holds. public/index.html renders products.slice(0, 4) right away and the rest after setTimeout(..., 1500). The test case says the last rows can arrive late, and data/products.json still has five products. So the app does show all five, and only the test's fixed 100 ms wait followed by a single count() is wrong. Replacing that with `await expect(shop.products).toHaveCount(5)` makes the test wait for the condition it actually cares about. The expected count stays at 5, the locator is unchanged, and Playwright's default 5 s expect timeout easily covers the 1.5 s delay.",
+      "reviewerConcerns": [
+        "The test now depends on the default 5 s expect timeout being longer than the paging delay. If the tail ever takes more than about 5 s, the test fails with a clear count mismatch rather than passing by mistake, which is the right outcome."
+      ]
+    }
+  ]
+}

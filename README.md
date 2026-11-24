@@ -69,9 +69,9 @@ fixed     test-defect   user sees the whole catalogue once it has loaded
 Four for four. The suite ends at **3 passed, 2 failed** — and the two still
 failing are the two that should be.
 
-Run three times from the same starting state. Every run produced the same four
+Run four times from the same starting state. Every run produced the same four
 classifications, the same two fixes and the same two refusals. One run is an
-anecdote; three is at least a weak signal.
+anecdote; four is at least a weak signal.
 
 Full transcripts of every agent call are in [`recordings/`](recordings/), and
 what each run decided is in [`runs/`](runs/).
