@@ -30,12 +30,22 @@ function* eachSpec(node) {
   for (const spec of node.specs || []) yield spec;
 }
 
+// Playwright's call log records how many times it retried while waiting —
+// "9 x locator resolved to ...". That count depends on how fast the machine is,
+// so it differs between a laptop and a CI runner. It tells the agent nothing it
+// cannot see from the rest of the message, and leaving it in makes the prompt
+// machine-specific, which silently breaks replay everywhere except where the
+// recording was made. CI caught exactly that.
+const stabilise = s => s
+  .replace(/\b\d+ (×|x) locator resolved/g, 'N × locator resolved')
+  .replace(/\b\d+(\.\d+)?ms\b(?! exceeded)(?! waiting)/g, 'Nms');
+
 // On a timeout, result.error.message is only "Test timeout exceeded" — the part
 // that says WHICH locator was being waited on sits in result.errors[]. A fixer
 // given just the first message cannot classify anything, so take them all.
 function errorText(result) {
   const all = (result.errors?.length ? result.errors : [result.error || {}])
-    .map(e => stripAnsi(e.message).trim())
+    .map(e => stabilise(stripAnsi(e.message).trim()))
     .filter(Boolean);
   return [...new Set(all)].join('\n\n');
 }
